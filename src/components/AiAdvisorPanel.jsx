@@ -1,36 +1,54 @@
-import { useState } from 'react'
+import { useState } from "react";
 
-function highlightText(text, highlights) {
+function highlightText(text, highlights = []) {
   return highlights.reduce((content, highlight) => {
-    const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    return content.replace(new RegExp(escaped, 'g'), `<strong>${highlight}</strong>`)
-  }, text)
+    const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return content.replace(
+      new RegExp(escaped, "g"),
+      `<strong>${highlight}</strong>`,
+    );
+  }, text);
 }
 
-export default function AiAdvisorPanel({ insights, responses }) {
-  const [query, setQuery] = useState('')
-  const [response, setResponse] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [index, setIndex] = useState(0)
+export default function AiAdvisorPanel({ insights }) {
+  const [query, setQuery] = useState("");
+  const [response, setResponse] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const askAi = () => {
-    if (!query.trim()) return
-    setIsLoading(true)
-    setResponse('')
+  const askAi = async () => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) return;
+    setIsLoading(true);
+    setResponse("");
 
-    window.setTimeout(() => {
-      setResponse(responses[index % responses.length])
-      setIndex((prev) => prev + 1)
-      setIsLoading(false)
-    }, 1200)
-  }
+    try {
+      const res = await fetch("http://localhost:5001/api/ask-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: trimmedQuery, expenses: insights }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "AI request failed");
+      }
+
+      setResponse(data.answer || "No response received.");
+      setQuery("");
+    } catch (error) {
+      setResponse(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      askAi()
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      askAi();
     }
-  }
+  };
 
   return (
     <div className="ai-panel">
@@ -38,7 +56,7 @@ export default function AiAdvisorPanel({ insights, responses }) {
         <div className="ai-badge">✦</div>
         <div>
           <div className="ai-title">AI Financial Advisor</div>
-          <div className="ai-subtitle">Powered by Claude</div>
+          <div className="ai-subtitle">Powered by OpenAI</div>
         </div>
       </div>
 
@@ -48,7 +66,7 @@ export default function AiAdvisorPanel({ insights, responses }) {
           <div
             className="insight-text"
             dangerouslySetInnerHTML={{
-              __html: highlightText(insight.text, insight.highlights),
+              __html: highlightText(insight.text, insight.highlights || []),
             }}
           />
         </div>
@@ -59,12 +77,13 @@ export default function AiAdvisorPanel({ insights, responses }) {
           className="ai-input"
           rows="2"
           value={query}
+          disabled={isLoading}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask anything... 'Why did I spend more in March?'"
         />
         <button className="ai-ask-btn" onClick={askAi} disabled={isLoading}>
-          ✦ Ask AI advisor ↗
+          {isLoading ? "Thinking..." : "✦ Ask AI advisor ↗"}
         </button>
 
         {(isLoading || response) && (
@@ -72,14 +91,18 @@ export default function AiAdvisorPanel({ insights, responses }) {
             {isLoading ? (
               <>
                 Analyzing your financial data
-                <span className="typing-dots"><span /><span /><span /></span>
+                <span className="typing-dots">
+                  <span />
+                  <span />
+                  <span />
+                </span>
               </>
             ) : (
-              response
+              <span dangerouslySetInnerHTML={{ __html: response }} />
             )}
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
