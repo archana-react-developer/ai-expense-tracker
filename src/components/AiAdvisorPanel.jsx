@@ -22,7 +22,7 @@ export default function AiAdvisorPanel({ insights }) {
     setResponse("");
 
     try {
-      const res = await fetch("http://localhost:5001/api/ask-ai", {
+      const res = await fetch("/.netlify/functions/ask-ai",{
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: trimmedQuery, expenses: insights }),
